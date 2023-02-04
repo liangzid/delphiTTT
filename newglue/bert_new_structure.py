@@ -164,6 +164,17 @@ class BertFlattenForSeqCls(nn.Module):
         +self.LayerNormFFbias1
 
 
+        ## save the precomputed parameters.
+        torch.save({"init_d_flatten":self.init_d_flatten,
+                    "init_d_bias_flatten":self.init_d_bias_flatten,
+                    "init_M":self.M,
+                    "inter0_d_flatten":self.inter0_d_flatten,
+                    "inter0_bias":self.inter0_bias,
+                    "inter0_M":self.M1,
+                    "final_d":self.final_d,
+                    "final_b":self.final_b,
+                    },"temp.pytorch_ckpt")
+
     def forwardVanillaLinear(
         self,
         hidden_states: torch.Tensor,
@@ -254,13 +265,25 @@ class BertFlattenForSeqCls(nn.Module):
         else:
             return self.forwardFastLinear(x)
 
+
+def loadModel():
+    model_path="temp.pytorch_ckpt"
+    parameters=torch.load(model_path)
+    print(type(parameters))
+    print(parameters.keys())
+    print(parameters)
+
+    for key in parameters:
+        print(key)
+        print(parameters[key].shape)
+
 def main():
     from transformers import AutoConfig
     config=AutoConfig.from_pretrained("./save_models/saved_bert-base-uncased_taskcola-epoch30-lr3e-05-bs32")
     model=BertFlattenForSeqCls(config)
     inp=torch.ones((1,128,768))*1.5
 
-    times=10000
+    times=10
     t1=time.time()
     for _ in tqdm(range(times)):
         outs=model.forward(inp,t=0)
@@ -271,6 +294,8 @@ def main():
         outs=model.forward(inp,t=1)
     t2=time.time()
     print(outs,t2-t1)
+
+    loadModel()
 
 ## running entry
 if __name__=="__main__":

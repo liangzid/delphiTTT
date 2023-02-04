@@ -247,6 +247,47 @@ fn sample_fc_layer<R: RngCore + CryptoRng>(
     (layer, pt_layer)
 }
 
+fn sample_fc_layer2<R: RngCore + CryptoRng>(
+    vs: Option<&tch::nn::Path>,
+    input_dims: (usize, usize, usize, usize),
+    out_chn: usize,
+    rng: &mut R,
+) -> (
+    LinearLayer<TenBitAS, TenBitExpFP>,
+    LinearLayer<TenBitExpFP, TenBitExpFP>,
+) {
+    let weight_dims = (out_chn, input_dims.1, input_dims.2, input_dims.3);
+    let mut weights = Kernel::zeros(weight_dims);
+    weights
+        .iter_mut()
+        .for_each(|w_i| *w_i = generate_random_number(rng).1);
+
+    let bias_dims = (out_chn, 1, 1, 1);
+    let mut bias = Kernel::zeros(bias_dims);
+    bias.iter_mut()
+        .for_each(|w_i| *w_i = generate_random_number(rng).1);
+
+    let pt_weights = weights.clone();
+    let pt_bias = bias.clone();
+    let params = match vs {
+        Some(vs) => FullyConnectedParams::new_with_gpu(vs, weights, bias),
+        None => FullyConnectedParams::new(weights, bias),
+    };
+    let output_dims = params.calculate_output_size(input_dims);
+    let dims = LayerDims {
+        input_dims,
+        output_dims,
+    };
+    let pt_params = FullyConnectedParams::new(pt_weights, pt_bias);
+    let layer = LinearLayer::FullyConnected { dims, params };
+    let pt_layer = LinearLayer::FullyConnected {
+        dims,
+        params: pt_params,
+    };
+    (layer, pt_layer)
+}
+
+
 #[allow(dead_code)]
 fn sample_iden_layer(
     input_dims: (usize, usize, usize, usize),

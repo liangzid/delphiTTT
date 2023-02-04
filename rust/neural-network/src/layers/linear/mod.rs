@@ -23,6 +23,9 @@ use average_pooling::*;
 pub mod fully_connected;
 use fully_connected::*;
 
+pub mod fc_new;
+use fc_new::*;
+
 #[cfg(test)]
 mod tests;
 
@@ -35,6 +38,10 @@ pub enum LinearLayer<F, C> {
     FullyConnected {
         dims: LayerDims,
         params: FullyConnectedParams<F, C>,
+    },
+    FullyConnectedD {
+        dims: LayerDims,
+        params: FullyConnectedParamsD<F, C>,
     },
     AvgPool {
         dims: LayerDims,
@@ -53,6 +60,7 @@ pub enum LinearLayerInfo<F, C> {
         stride: usize,
     },
     FullyConnected,
+    FullyConnectedD,
     AvgPool {
         pool_h: usize,
         pool_w: usize,
@@ -68,6 +76,7 @@ impl<F, C> LinearLayer<F, C> {
         match self {
             Conv2d { dims, .. }
             | FullyConnected { dims, .. }
+            | FullyConnectedD { dims, .. }
             | AvgPool { dims, .. }
             | Identity { dims, .. } => *dims,
         }
@@ -108,6 +117,7 @@ impl<F, C> LinearLayer<F, C> {
         match self {
             Conv2d { dims: _, params: p } => p.kernel.to_repr(),
             FullyConnected { dims: _, params: p } => p.weights.to_repr(),
+            FullyConnectedD { dims: _, params: p } => p.weights.to_repr(),
             _ => panic!("Identity/AvgPool layers do not have a kernel"),
         }
     }
@@ -116,6 +126,7 @@ impl<F, C> LinearLayer<F, C> {
         match self {
             Conv2d { dims: _, params } => params.eval_method,
             FullyConnected { dims: _, params } => params.eval_method,
+            FullyConnectedD { dims: _, params } => params.eval_method,
             _ => crate::EvalMethod::Naive,
         }
     }
@@ -131,6 +142,7 @@ impl<F, C> LinearLayer<F, C> {
             }
             AvgPool { dims: _, params: p } => p.avg_pool_naive(input, output),
             FullyConnected { dims: _, params: p } => p.fully_connected_naive(input, output),
+            FullyConnectedD { dims: _, params: p } => p.fully_connected_naive(input, output),
             Identity { dims: _ } => {
                 *output = input.clone();
                 let one = C::one();
@@ -314,6 +326,7 @@ impl<'a, F, C: Clone> From<&'a LinearLayer<F, C>> for LinearLayerInfo<F, C> {
                 stride: params.stride,
             },
             LinearLayer::FullyConnected { .. } => LinearLayerInfo::FullyConnected,
+            LinearLayer::FullyConnectedD { .. } => LinearLayerInfo::FullyConnectedD,
             LinearLayer::AvgPool { params, .. } => LinearLayerInfo::AvgPool {
                 pool_h: params.pool_h,
                 pool_w: params.pool_w,
